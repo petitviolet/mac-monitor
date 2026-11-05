@@ -1,0 +1,20 @@
+Generate exactly 2 images with the image generation tool for a native macOS system monitor app named MacMonitor. Total image generations: 2. Do not generate extra variants or confirmation images. Regenerate a sheet at most once, only if it clearly violates the rules below. Do not use chroma key or any post-processing; I will post-process myself.
+
+IMAGE 1: application icon artwork. 1024x1024, opaque, square.
+- Full-bleed: the background fills the whole square up to all four edges. Do NOT draw a rounded-rectangle tile, a border, a drop shadow, or any outer frame. I will apply the macOS rounded mask myself.
+- Background: smooth deep graphite to near-black vertical gradient.
+- Subject, centered: a single thick circular ring gauge, about 75% filled clockwise from 12 o'clock, the filled arc glowing with a smooth cyan-to-blue gradient over a dim dark track. Inside the ring: 4 short rounded vertical bars of differing heights in soft white, like a small bar meter.
+- Keep every important element inside the central 62% of the canvas; outside that is background only.
+- Clean, modern macOS Big Sur style, subtle depth, crisp edges. No text, letters, numbers, logos, or apples. No purple, magenta, or pink.
+
+IMAGE 2: UI glyph sheet. 1024x1024, a 2x2 grid of 4 monochrome glyphs.
+- Pure solid black (#000000) glyphs on a pure solid white (#FFFFFF) background. No gray, no gradients, no shading, no shadows, no grid lines, no labels.
+- Each glyph is centered in its quadrant, occupies about 60% of the quadrant width, and never touches or crosses a quadrant boundary.
+- Bold, simple geometric shapes with thick strokes, in the style of SF Symbols, and legible at 16x16 pixels. Same stroke weight across all 4 glyphs.
+- Row-major order:
+  1. top-left: a ring gauge, about 75% filled thick arc, with a heartbeat-free small dot in the center.
+  2. top-right: a semicircular speedometer dial with a needle.
+  3. bottom-left: a list: three horizontal rows, each a small round dot followed by a thick horizontal bar, with bars of decreasing length.
+  4. bottom-right: four rounded squares arranged in a 2x2 grid, like an app launcher.
+
+After generating, print the absolute file path of each generated PNG, labelled IMAGE1 and IMAGE2. Do not modify any other files.
