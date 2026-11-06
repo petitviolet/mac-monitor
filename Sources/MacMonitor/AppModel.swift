@@ -12,6 +12,7 @@ final class AppModel {
     private(set) var apps: [RunningAppInfo] = []
     private(set) var processDetail: ProcessDetailState = .noSelection
     var sortKey: ProcessSortKey = .cpu
+    var terminalOnly = false
     var selectedAppPID: pid_t?
     var pendingKill: KillTicket?
     var killMessage: String?
@@ -42,7 +43,16 @@ final class AppModel {
     }
 
     var topProcesses: [ProcessEntry] {
-        ProcessRanking.top(snapshot?.processes ?? [], by: sortKey, limit: Self.topProcessCount)
+        ProcessRanking.top(
+            snapshot?.processes ?? [],
+            by: sortKey,
+            limit: Self.topProcessCount,
+            includedPIDs: terminalOnly ? snapshot?.terminalLaunchedPIDs ?? [] : nil
+        )
+    }
+
+    func isLaunchedFromTerminal(_ pid: pid_t) -> Bool {
+        snapshot?.terminalLaunchedPIDs.contains(pid) ?? false
     }
 
     var menuBarLabel: String {

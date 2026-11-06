@@ -31,6 +31,9 @@ struct DetailPlaceholder: View {
 enum DetailText {
     static let denied = "権限なし"
     static let unknown = "不明"
+    static let noValue = "なし"
+    /// 環境変数が1つも返らなかったときに使う。権限がない場合と、env -iで空にして起動した場合を区別できない。
+    static let unreadable = "読み取れません"
     static let exited = "プロセスは終了しました"
     static let measuring = "計測中"
 

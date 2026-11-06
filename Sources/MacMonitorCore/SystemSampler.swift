@@ -3,6 +3,8 @@ import Foundation
 public struct SystemSnapshot: Sendable {
     /// nilは取得に失敗したことを表す。
     public let processes: [ProcessEntry]?
+    /// 端末から起動したと判定したプロセス。
+    public let terminalLaunchedPIDs: Set<pid_t>
     /// 差分で求める値なので、初回はnilになる。
     public let cpu: CPUUsage?
     public let memory: MemoryUsage?
@@ -22,8 +24,10 @@ public final class SystemSampler {
     public init() {}
 
     public func sample() -> SystemSnapshot {
-        SystemSnapshot(
-            processes: PSRunner.run(),
+        let processes = PSRunner.run()
+        return SystemSnapshot(
+            processes: processes,
+            terminalLaunchedPIDs: TerminalLaunch.pids(in: processes ?? []),
             cpu: sampleCPU(),
             memory: MemoryUsageReader.read(),
             disk: DiskUsageReader.read(),

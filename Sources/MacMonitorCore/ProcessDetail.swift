@@ -7,6 +7,10 @@ public struct ProcessDetail: Equatable, Sendable {
     public let user: String?
     public let path: String?
     public let arguments: [String]?
+    /// nilは環境変数を読めなかったことを表す。
+    public let launchEnvironment: LaunchEnvironment?
+    /// 今のカレントディレクトリ。
+    public let workingDirectory: String?
     public let startTime: Date?
     public let threadCount: Int?
     public let cpuTimeSeconds: Double?
@@ -26,13 +30,16 @@ public enum ProcessDetailReader {
         guard let kernel = KernelProcessInfo.read(pid: pid) else { return nil }
 
         let rusage = readRusage(pid: pid)
+        let procArgs = readProcArgs(pid: pid)
         let start = kernel.startTime
         return ProcessDetail(
             pid: pid,
             parentPID: kernel.parentPID,
             user: psEntry?.user ?? userName(uid: kernel.userID),
             path: readPath(pid: pid),
-            arguments: readArguments(pid: pid),
+            arguments: procArgs?.arguments,
+            launchEnvironment: procArgs?.environment,
+            workingDirectory: readWorkingDirectory(pid: pid),
             startTime: Date(timeIntervalSince1970: Double(start.seconds) + Double(start.microseconds) / microsecondsPerSecond),
             threadCount: readThreadCount(pid: pid),
             cpuTimeSeconds: rusage.map { cpuSeconds(from: $0) },
@@ -57,7 +64,7 @@ public enum ProcessDetailReader {
         return String(cString: buffer)
     }
 
-    private static func readArguments(pid: pid_t) -> [String]? {
+    private static func readProcArgs(pid: pid_t) -> ProcArgs? {
         var maxSize: Int32 = 0
         var maxSizeLength = MemoryLayout<Int32>.size
         var argmaxMIB: [Int32] = [CTL_KERN, KERN_ARGMAX]
@@ -69,7 +76,18 @@ public enum ProcessDetailReader {
         var length = buffer.count
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
         guard sysctl(&mib, UInt32(mib.count), &buffer, &length, nil, 0) == 0 else { return nil }
-        return ProcArgsParser.parse(Array(buffer.prefix(length)))?.arguments
+        buffer.removeSubrange(length...)
+        return ProcArgsParser.parse(buffer)
+    }
+
+    private static func readWorkingDirectory(pid: pid_t) -> String? {
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.stride)
+        guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
+        return withUnsafeBytes(of: info.pvi_cdir.vip_path) { buffer in
+            let bytes = buffer.prefix { $0 != 0 }
+            return bytes.isEmpty ? nil : String(decoding: bytes, as: UTF8.self)
+        }
     }
 
     private static func readThreadCount(pid: pid_t) -> Int? {

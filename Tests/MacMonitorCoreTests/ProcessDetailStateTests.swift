@@ -4,7 +4,7 @@ import XCTest
 final class ProcessDetailStateTests: XCTestCase {
     private func detail(pid: pid_t) -> ProcessDetail {
         ProcessDetail(
-            pid: pid, parentPID: 1, user: nil, path: nil, arguments: nil,
+            pid: pid, parentPID: 1, user: nil, path: nil, arguments: nil, launchEnvironment: nil, workingDirectory: nil,
             startTime: nil, threadCount: nil, cpuTimeSeconds: nil, footprintBytes: nil, rssBytes: nil
         )
     }

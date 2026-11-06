@@ -2,7 +2,7 @@ import Foundation
 
 public enum PSRunner {
     private static let executablePath = "/bin/ps"
-    private static let listArguments = ["-Aceo", "pid=,ppid=,pcpu=,rss=,user=,comm="]
+    private static let listArguments = ["-Aceo", "pid=,ppid=,pcpu=,rss=,user=,tty=,comm="]
     private static let listTimeout: TimeInterval = 5
     /// ダイアログを開く操作の途中で呼ぶので、一覧より短くする。
     private static let nameTimeout: TimeInterval = 1

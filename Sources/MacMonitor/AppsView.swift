@@ -14,6 +14,8 @@ struct AppsView: View {
                 HStack {
                     AppIcon(image: model.icon(for: app), size: Self.rowIconSize)
                     Text(app.name)
+                    Spacer()
+                    KillRowButton(name: app.name) { model.requestKill(app: app) }
                 }
                 .contextMenu {
                     Button("シグナルを送る…") { model.requestKill(app: app) }

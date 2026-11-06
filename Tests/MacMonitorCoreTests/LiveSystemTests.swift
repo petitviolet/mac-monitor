@@ -37,6 +37,21 @@ final class LiveSystemTests: XCTestCase {
         XCTAssertEqual(entry?.name, "日本語スリープ")
     }
 
+    func testPSReportsTTYColumnWithoutBreakingNames() throws {
+        // Processで起動した子は端末を持たないので、psは「??」と出し、パーサーはnilにする。
+        let child = try startSleep()
+        defer { child.terminate() }
+        var entry: ProcessEntry?
+        for _ in 0..<50 {
+            entry = PSRunner.run()?.first { $0.pid == child.processIdentifier && $0.name == "sleep" }
+            if entry != nil { break }
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        let found = try XCTUnwrap(entry)
+        XCTAssertNil(found.tty)
+        XCTAssertEqual(found.ppid, getpid())
+    }
+
     func testReadNameOfOwnChildAndMissingPID() throws {
         let child = try startSleep()
         defer { child.terminate() }
@@ -110,6 +125,9 @@ final class LiveSystemTests: XCTestCase {
         XCTAssertEqual(read.user, NSUserName())
         XCTAssertNotNil(read.startTime)
         XCTAssertEqual(read.threadCount, 1)
+        XCTAssertEqual(read.workingDirectory, FileManager.default.currentDirectoryPath)
+        // /bin/sleepはAppleのバイナリなので、他のプロセスからは環境変数が読めない。
+        XCTAssertNil(read.launchEnvironment)
         XCTAssertNotNil(read.footprintBytes)
         XCTAssertNotNil(read.rssBytes)
     }
@@ -128,6 +146,12 @@ final class LiveSystemTests: XCTestCase {
         XCTAssertEqual(measured, expected, accuracy: 0.5)
     }
 
+    func testOwnLaunchEnvironmentMatchesProcessInfo() throws {
+        let environment = try XCTUnwrap(ProcessDetailReader.read(pid: getpid(), psEntry: nil)?.launchEnvironment)
+        XCTAssertEqual(environment.workingDirectoryAtLaunch, ProcessInfo.processInfo.environment["PWD"])
+        XCTAssertEqual(environment.commandDirectory, ProcessInfo.processInfo.environment["INIT_CWD"])
+    }
+
     func testDetailOfMissingPIDIsNil() {
         XCTAssertNil(ProcessDetailReader.read(pid: 99_999_999, psEntry: nil))
     }
@@ -136,6 +160,8 @@ final class LiveSystemTests: XCTestCase {
         let launchd = try XCTUnwrap(ProcessDetailReader.read(pid: 1, psEntry: nil))
         XCTAssertEqual(launchd.parentPID, 0)
         XCTAssertNotNil(launchd.startTime)
+        XCTAssertNil(launchd.workingDirectory)
+        XCTAssertNil(launchd.launchEnvironment)
     }
 
     func testSamplerReturnsMeasuringFirstThenValues() throws {
