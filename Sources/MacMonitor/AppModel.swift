@@ -10,9 +10,21 @@ final class AppModel {
 
     private(set) var snapshot: SystemSnapshot?
     private(set) var apps: [RunningAppInfo] = []
+    private(set) var appAggregates: [pid_t: ProcessAggregate] = [:]
     private(set) var processDetail: ProcessDetailState = .noSelection
     var sortKey: ProcessSortKey = .cpu
+    var appSortOrder = AppSortOrder.initial
     var terminalOnly = false
+    private(set) var launchPWDs: [pid_t: String] = [:]
+    var searchText = "" {
+        didSet {
+            let active = ProcessSearch.isActive(searchText)
+            guard active != ProcessSearch.isActive(oldValue) else { return }
+            // 再開した直後に古い対応表で絞らないように、やめた時点で空にする。
+            if !active { launchPWDs = [:] }
+            pipeline?.setSearchActive(active)
+        }
+    }
     var selectedAppPID: pid_t?
     var pendingKill: KillTicket?
     var killMessage: String?
@@ -47,7 +59,9 @@ final class AppModel {
             snapshot?.processes ?? [],
             by: sortKey,
             limit: Self.topProcessCount,
-            includedPIDs: terminalOnly ? snapshot?.terminalLaunchedPIDs ?? [] : nil
+            includedPIDs: terminalOnly ? snapshot?.terminalLaunchedPIDs ?? [] : nil,
+            query: searchText,
+            launchPWDs: launchPWDs
         )
     }
 
@@ -59,8 +73,12 @@ final class AppModel {
         Formatting.menuBarLabel(cpuFraction: snapshot?.cpu?.overall, memoryFraction: snapshot?.memory?.usedFraction)
     }
 
+    var sortedApps: [RunningAppInfo] {
+        AppRanking.sorted(apps, by: appSortOrder, pid: \.pid, name: \.name, aggregate: { self.appAggregates[$0.pid] })
+    }
+
     func aggregate(rootPID: pid_t) -> ProcessAggregate? {
-        ProcessTree.aggregate(rootPID: rootPID, entries: snapshot?.processes ?? [])
+        appAggregates[rootPID]
     }
 
     func icon(for app: RunningAppInfo) -> NSImage? {
@@ -95,6 +113,12 @@ final class AppModel {
         if let apps = update.apps {
             refreshIcons(for: apps)
             self.apps = apps
+        }
+        if let aggregates = update.appAggregates {
+            appAggregates = aggregates
+        }
+        if let pwds = update.launchPWDs, ProcessSearch.isActive(searchText), pwds != launchPWDs {
+            launchPWDs = pwds
         }
         if let result = update.detail {
             processDetail = processDetail.applying(result, selectedPID: selectedPID)

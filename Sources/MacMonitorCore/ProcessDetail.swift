@@ -30,7 +30,7 @@ public enum ProcessDetailReader {
         guard let kernel = KernelProcessInfo.read(pid: pid) else { return nil }
 
         let rusage = readRusage(pid: pid)
-        let procArgs = readProcArgs(pid: pid)
+        let procArgs = ProcArgsReader().readProcArgs(pid: pid)
         let start = kernel.startTime
         return ProcessDetail(
             pid: pid,
@@ -62,22 +62,6 @@ public enum ProcessDetailReader {
         var buffer = [CChar](repeating: 0, count: pathBufferSize)
         guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
         return String(cString: buffer)
-    }
-
-    private static func readProcArgs(pid: pid_t) -> ProcArgs? {
-        var maxSize: Int32 = 0
-        var maxSizeLength = MemoryLayout<Int32>.size
-        var argmaxMIB: [Int32] = [CTL_KERN, KERN_ARGMAX]
-        guard sysctl(&argmaxMIB, UInt32(argmaxMIB.count), &maxSize, &maxSizeLength, nil, 0) == 0, maxSize > 0 else {
-            return nil
-        }
-
-        var buffer = [UInt8](repeating: 0, count: Int(maxSize))
-        var length = buffer.count
-        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
-        guard sysctl(&mib, UInt32(mib.count), &buffer, &length, nil, 0) == 0 else { return nil }
-        buffer.removeSubrange(length...)
-        return ProcArgsParser.parse(buffer)
     }
 
     private static func readWorkingDirectory(pid: pid_t) -> String? {

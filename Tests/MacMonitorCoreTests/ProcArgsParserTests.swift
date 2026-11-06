@@ -117,4 +117,20 @@ final class ProcArgsParserTests: XCTestCase {
         let parsed = ProcArgsParser.parse(buffer(argc: 1, path: "/bin/x", "x\u{0}PWD=\u{0}"))
         XCTAssertEqual(parsed?.environment?.workingDirectoryAtLaunch, "")
     }
+
+    func testEnvironmentOnlyParserMatchesTheFullParser() {
+        let buffers: [[UInt8]] = [
+            buffer(argc: 1, path: "/usr/bin/node", "node\u{0}PWD=/work/app\u{0}INIT_CWD=/work\u{0}TOKEN=secret\u{0}"),
+            buffer(argc: 1, path: "/usr/bin/x", "\u{0}TOKEN=secret\u{0}PWD=/work\u{0}"),
+            buffer(argc: 1, path: "/bin/sleep", "sleep\u{0}\u{0}\u{0}"),
+            buffer(argc: 5, path: "/bin/x", "x\u{0}PWD=/looks-like-arg\u{0}"),
+            buffer(argc: 1, path: "/bin/x", "x\u{0}INIT_CWD=/a\u{0}PWD=/cut"),
+            raw(argc: 1, "/bin/sleep\u{0}"),
+            raw(argc: -1, "/bin/sleep\u{0}"),
+            []
+        ]
+        for bytes in buffers {
+            XCTAssertEqual(ProcArgsParser.parseLaunchEnvironment(bytes), ProcArgsParser.parse(bytes)?.environment)
+        }
+    }
 }

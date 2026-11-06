@@ -47,7 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct MacMonitorApp: App {
-    private static let defaultWindowSize = CGSize(width: 980, height: 660)
+    /// 既定の幅はウィンドウの最小幅と同じにする。一覧を最小幅にして詳細ペインを並べた幅。
+    private static let defaultWindowSize = CGSize(width: ContentView.minimumWidth, height: 660)
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     /// Appの構造体はSwiftUIが複数回作ることがあるので、サンプリングを持つモデルを型に1つだけ置く。

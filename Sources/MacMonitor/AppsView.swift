@@ -2,29 +2,76 @@ import MacMonitorCore
 import SwiftUI
 
 struct AppsView: View {
-    private static let listMinimumWidth: CGFloat = 280
-    private static let detailMinimumWidth: CGFloat = 380
+    private static let nameColumnMinimumWidth: CGFloat = 120
+    private static let cpuColumnWidth: CGFloat = 60
+    private static let memoryColumnWidth: CGFloat = 76
+    /// 列の間隔、行の余白、スクロールバーのために見込んだ余裕で、実測した値はない。
+    private static let tableChromeAllowance: CGFloat = 80
+    private static let listMinimumWidth = nameColumnMinimumWidth + cpuColumnWidth + memoryColumnWidth
+        + SplitLayout.killColumnWidth + tableChromeAllowance
     private static let rowIconSize: CGFloat = 20
+    /// 一覧の最小幅、区切り線、詳細ペインの固定幅を合わせた幅。ウィンドウの最小幅に使う。
+    static let minimumWidth = listMinimumWidth + SplitLayout.dividerWidth + DetailPaneLayout.width
 
     @Bindable var model: AppModel
 
     var body: some View {
-        HSplitView {
-            List(model.apps, selection: $model.selectedAppPID) { app in
-                HStack {
-                    AppIcon(image: model.icon(for: app), size: Self.rowIconSize)
-                    Text(app.name)
-                    Spacer()
-                    KillRowButton(name: app.name) { model.requestKill(app: app) }
-                }
-                .contextMenu {
-                    Button("シグナルを送る…") { model.requestKill(app: app) }
-                }
-            }
-            .frame(minWidth: Self.listMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
+        HStack(spacing: 0) {
+            appTable
+                .frame(minWidth: Self.listMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
+
+            Divider()
 
             AppDetailPane(model: model)
-                .frame(minWidth: Self.detailMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: DetailPaneLayout.width)
+                .frame(maxHeight: .infinity)
+        }
+    }
+
+    private typealias AppHeaderSort = HeaderSort<RunningAppInfo, AppSortKey>
+
+    /// SwiftUIが渡す向きは使わず、押された見出しから次の並び順をCoreの規則で決める。
+    private var sortOrder: Binding<[AppHeaderSort]> {
+        Binding(
+            get: { [AppHeaderSort(key: model.appSortOrder.key, order: model.appSortOrder.ascending ? .forward : .reverse)] },
+            set: { newValue in
+                guard let clicked = newValue.first?.key else { return }
+                model.appSortOrder = model.appSortOrder.afterHeaderClick(clicked)
+            }
+        )
+    }
+
+    /// CPUとメモリは詳細と同じく本体と子孫の合算。
+    private var appTable: some View {
+        Table(model.sortedApps, selection: $model.selectedAppPID, sortOrder: sortOrder) {
+            TableColumn("名前", sortUsing: AppHeaderSort(key: .name, order: .forward)) { app in
+                HStack(spacing: 6) {
+                    AppIcon(image: model.icon(for: app), size: Self.rowIconSize)
+                    Text(app.name)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .width(min: Self.nameColumnMinimumWidth)
+            TableColumn("CPU", sortUsing: AppHeaderSort(key: .cpu, order: .reverse)) { app in
+                Text(model.aggregate(rootPID: app.pid).map { Formatting.cpuPercent($0.cpuPercent) } ?? DetailText.unknown)
+                    .monospacedDigit()
+            }
+            .width(Self.cpuColumnWidth)
+            TableColumn("メモリ", sortUsing: AppHeaderSort(key: .memory, order: .reverse)) { app in
+                Text(model.aggregate(rootPID: app.pid).map { Formatting.bytes($0.rssBytes) } ?? DetailText.unknown)
+                    .monospacedDigit()
+            }
+            .width(Self.memoryColumnWidth)
+            TableColumn("") { app in
+                KillRowButton(name: app.name) { model.requestKill(app: app) }
+            }
+            .width(SplitLayout.killColumnWidth)
+        }
+        .contextMenu(forSelectionType: pid_t.self) { pids in
+            if let pid = pids.first, let app = model.apps.first(where: { $0.pid == pid }) {
+                Button("シグナルを送る…") { model.requestKill(app: app) }
+            }
         }
     }
 }
@@ -86,7 +133,7 @@ private struct AppDetailPane: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Button("シグナルを送る…") { model.requestKill(app: app) }
             }
-            .padding(12)
+            .padding(DetailPaneLayout.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

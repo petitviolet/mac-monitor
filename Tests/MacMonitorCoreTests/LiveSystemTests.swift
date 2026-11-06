@@ -152,6 +152,20 @@ final class LiveSystemTests: XCTestCase {
         XCTAssertEqual(environment.commandDirectory, ProcessInfo.processInfo.environment["INIT_CWD"])
     }
 
+    func testAllStartTimesContainThisProcess() throws {
+        let all = try XCTUnwrap(ProcessStartTimeReader.readAll())
+        XCTAssertGreaterThan(all.count, 1)
+        XCTAssertEqual(all[getpid()], ProcessStartTimeReader.read(pid: getpid()))
+    }
+
+    func testLiveLaunchPWDOfThisProcess() throws {
+        guard let expected = ProcessInfo.processInfo.environment["PWD"] else {
+            throw XCTSkip("PWDが設定されていない環境では確かめられない")
+        }
+        let refreshed = LaunchPWDCache.live().refresh(pids: [getpid()])
+        XCTAssertEqual(refreshed.pwds[getpid()], expected)
+    }
+
     func testDetailOfMissingPIDIsNil() {
         XCTAssertNil(ProcessDetailReader.read(pid: 99_999_999, psEntry: nil))
     }

@@ -8,8 +8,8 @@ private enum MainTab: String {
 }
 
 struct ContentView: View {
-    private static let minimumWidth = ProcessesView.minimumWidth
-    private static let minimumHeight: CGFloat = 560
+    static let minimumWidth = max(ProcessesView.minimumWidth, AppsView.minimumWidth)
+    static let minimumHeight: CGFloat = 560
     private static let tabGlyphSize: CGFloat = 15
     private static let tabCornerRadius: CGFloat = 6
 

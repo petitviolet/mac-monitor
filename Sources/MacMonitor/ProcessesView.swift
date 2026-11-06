@@ -3,27 +3,23 @@ import SwiftUI
 
 struct ProcessesView: View {
     private static let listMinimumWidth: CGFloat = 590
-    private static let detailMinimumWidth: CGFloat = 300
     private static let listPadding: CGFloat = 8
-    /// 一覧の両側の余白と、一覧と詳細の最小幅を合わせた幅。ウィンドウの最小幅に使う。
-    static let minimumWidth = listMinimumWidth + listPadding * 2 + detailMinimumWidth
-    private static let killColumnWidth: CGFloat = 24
+    private static let searchFieldMaximumWidth: CGFloat = 280
+    /// 一覧の最小幅と両側の余白、区切り線、詳細ペインの固定幅を合わせた幅。ウィンドウの最小幅に使う。
+    static let minimumWidth = listMinimumWidth + listPadding * 2 + SplitLayout.dividerWidth + DetailPaneLayout.width
 
     @Bindable var model: AppModel
 
     var body: some View {
-        HSplitView {
+        HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 16) {
-                    Picker("並び順", selection: $model.sortKey) {
-                        Text("CPU順").tag(ProcessSortKey.cpu)
-                        Text("メモリ順").tag(ProcessSortKey.memory)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
                     Toggle("端末から起動のみ", isOn: $model.terminalOnly)
                         .toggleStyle(.checkbox)
+                    TextField("検索", text: $model.searchText, prompt: Text("名前または起動時のPWDで絞り込み"))
+                        .textFieldStyle(.roundedBorder)
+                        .labelsHidden()
+                        .frame(maxWidth: Self.searchFieldMaximumWidth)
                 }
                 processList
                 Text("CPUとメモリはpsの値です。CPUは直近最大1分の減衰平均、メモリはRSSです。")
@@ -33,8 +29,11 @@ struct ProcessesView: View {
             .padding(Self.listPadding)
             .frame(minWidth: Self.listMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
 
+            Divider()
+
             ProcessDetailPane(model: model)
-                .frame(minWidth: Self.detailMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: DetailPaneLayout.width)
+                .frame(maxHeight: .infinity)
         }
     }
 
@@ -51,8 +50,18 @@ struct ProcessesView: View {
         }
     }
 
+    private typealias ProcessHeaderSort = HeaderSort<ProcessEntry, ProcessSortKey>
+
+    /// 見出しの矢印は常に多い順を示す。押された見出しだけを見て、SwiftUIが反転させた向きは使わない。
+    private var sortOrder: Binding<[ProcessHeaderSort]> {
+        Binding(
+            get: { [ProcessHeaderSort(key: model.sortKey, order: .reverse)] },
+            set: { model.sortKey = ProcessSortKey.afterHeaderClick($0.first?.key, current: model.sortKey) }
+        )
+    }
+
     private var processTable: some View {
-        Table(model.topProcesses, selection: $model.selectedPID) {
+        Table(model.topProcesses, selection: $model.selectedPID, sortOrder: sortOrder) {
             TableColumn("名前") { entry in
                 HStack(spacing: 6) {
                     Text(entry.name)
@@ -66,16 +75,20 @@ struct ProcessesView: View {
             .width(min: 120)
             TableColumn("PID") { Text(String($0.pid)).monospacedDigit() }
                 .width(56)
-            TableColumn("CPU") { Text(Formatting.cpuPercent($0.cpuPercent)).monospacedDigit() }
-                .width(60)
-            TableColumn("メモリ") { Text(Formatting.bytes($0.rssBytes)).monospacedDigit() }
-                .width(76)
-            TableColumn("ユーザー", value: \.user)
+            TableColumn("CPU", sortUsing: ProcessHeaderSort(key: .cpu, order: .reverse)) {
+                Text(Formatting.cpuPercent($0.cpuPercent)).monospacedDigit()
+            }
+            .width(60)
+            TableColumn("メモリ", sortUsing: ProcessHeaderSort(key: .memory, order: .reverse)) {
+                Text(Formatting.bytes($0.rssBytes)).monospacedDigit()
+            }
+            .width(76)
+            TableColumn("ユーザー") { Text($0.user) }
                 .width(96)
             TableColumn("") { entry in
                 KillRowButton(name: entry.name) { model.requestKill(pid: entry.pid, listedName: entry.name) }
             }
-            .width(Self.killColumnWidth)
+            .width(SplitLayout.killColumnWidth)
         }
         .contextMenu(forSelectionType: pid_t.self) { pids in
             if let pid = pids.first, let entry = model.topProcesses.first(where: { $0.pid == pid }) {
@@ -147,7 +160,7 @@ private struct ProcessDetailPane: View {
                 }
                 Button("シグナルを送る…") { model.requestKill(pid: detail.pid, listedName: name) }
             }
-            .padding(12)
+            .padding(DetailPaneLayout.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
