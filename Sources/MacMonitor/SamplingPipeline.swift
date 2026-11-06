@@ -9,7 +9,7 @@ final class SamplingPipeline {
         let detail: ProcessDetailResult?
     }
 
-    private static let interval: TimeInterval = 2
+    private static let interval: TimeInterval = 5
 
     private let sampler = SystemSampler()
     private let appReader = RunningAppReader()

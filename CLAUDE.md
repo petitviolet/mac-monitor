@@ -28,7 +28,7 @@ scripts/test-ai.sh --filter PSRunnerTests/testName
 
 データは次の順に流れます。
 
-1. `SerialTicker`が専用のキューで2秒ごとに`SamplingPipeline.tick()`を呼びます。前回の処理が終わるまで次は始まりません。
+1. `SerialTicker`が専用のキューで5秒ごとに(`SamplingPipeline.interval`)`SamplingPipeline.tick()`を呼びます。前回の処理が終わるまで次は始まりません。
 2. `SystemSampler`が`/bin/ps`、CPU、メモリ、ディスク、ネットワークを読み、`SystemSnapshot`にまとめます。
 3. `SamplingPipeline`がメインキューへ`Update`を渡し、`AppModel.apply`が`@Observable`の状態を更新します。
 4. `ContentView`のタブと`MenuBarContent`が同じ`AppModel`を読みます。`AppModel`は`MacMonitorApp`のstaticプロパティに1つだけ置きます。Appの構造体は複数回作られることがあり、モデルが増えるとサンプリングも増えるからです。
